@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Citizen Shipper Contact Information Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .chat-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            border-left: 4px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .message.pii-detected {
+            border-left: 4px solid #dc3545;
+            background-color: #fff5f5;
+        }
+        .pii-alert {
+            background-color: #dc3545;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            animation: flash 1s ease-in-out;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pii-details {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #dc3545;
+            background-color: rgba(220, 53, 69, 0.1);
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+            position: relative;
+        }
+        textarea {
+            flex-grow: 1;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            resize: vertical;
+            min-height: 60px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        button {
+            padding: 15px 30px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .warning-text {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .message-text {
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        .timestamp {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+        }
+        .info-banner {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            color: #495057;
+            text-align: center;
+        }
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 10px;
+            justify-content: flex-end;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background-color: #2196F3;
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+        .toggle-label {
+            font-size: 16px;
+            color: #333;
+            user-select: none;
+        }
+        .masking-status {
+            font-size: 0.8em;
+            color: #666;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h1>Contact Information Detection</h1>
+        
+        <div class="info-banner">
+            This chat monitors for attempts to share contact information, including:
+            <br>• Phone numbers (including spelled-out numbers and mixed formats)
+            <br>• Email addresses (including obfuscated formats)
+        </div>
+
+        <div class="toggle-container">
+            <span class="toggle-label">Mask detected information</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="maskingToggle" {% if masking_enabled %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+            <span class="masking-status" id="maskingStatus">
+                {% if masking_enabled %}
+                (Masking enabled)
+                {% else %}
+                (Masking disabled)
+                {% endif %}
+            </span>
+        </div>
+
+        <div class="messages">
+            {% for message in messages %}
+            <div class="message {% if message.pii_detected %}pii-detected{% endif %}">
+                <div class="message-text">{{ message.text }}</div>
+                {% if message.pii_detected %}
+                <div class="pii-alert">
+                    <span>⚠️</span>
+                    <span>Contact Information Detected!</span>
+                </div>
+                <div class="pii-details">
+                    Detected Information:
+                    {% for detail in message.pii_details %}
+                    <div>• {{ detail.type }}: <span class="warning-text">"{{ detail.display_text }}"</span></div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div class="timestamp">{{ message.timestamp if message.timestamp else 'Just now' }}</div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <form method="POST" class="input-container" id="messageForm">
+            <textarea 
+                name="message" 
+                placeholder="Type your message here..." 
+                required
+                oninput="this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px';"
+            ></textarea>
+            <button type="submit">Send</button>
+        </form>
+    </div>
+
+    <script>
+        // Auto-expand textarea
+        const textarea = document.querySelector('textarea');
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+        // Scroll to bottom on load
+        window.onload = function() {
+            const messages = document.querySelector('.messages');
+            messages.scrollTop = messages.scrollHeight;
+        };
+
+        // Scroll to bottom on new message
+        const form = document.getElementById('messageForm');
+        form.onsubmit = function() {
+            setTimeout(() => {
+                const messages = document.querySelector('.messages');
+                messages.scrollTop = messages.scrollHeight;
+            }, 100);
+        };
+
+        // Handle masking toggle with visual feedback
+        document.getElementById('maskingToggle').addEventListener('change', function() {
+            const statusElement = document.getElementById('maskingStatus');
+            statusElement.textContent = this.checked ? '(Masking enabled)' : '(Masking disabled)';
+            
+            fetch('/toggle_masking', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
