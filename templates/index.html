@@ -172,16 +172,51 @@
             color: #666;
             margin-left: 10px;
         }
+        .clear-button {
+            background-color: #dc3545;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: auto;
+        }
+        .clear-button:hover {
+            background-color: #c82333;
+        }
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .cross-message-tag {
+            display: inline-block;
+            background-color: #6c757d;
+            color: white;
+            font-size: 0.7em;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
     <div class="chat-container">
-        <h1>Contact Information Detection</h1>
+        <div class="header-actions">
+            <h1>Contact Information Detection</h1>
+            <button id="clearChat" class="clear-button">Clear Chat</button>
+        </div>
         
         <div class="info-banner">
             This chat monitors for attempts to share contact information, including:
-            <br>• Phone numbers (including spelled-out numbers and mixed formats)
+            <br>• Phone numbers (including spelled-out numbers, mixed formats, and obfuscated patterns)
             <br>• Email addresses (including obfuscated formats)
+            <br>• Social media handles and contact methods
+            <br>• Advanced evasion techniques (ASCII art, code formats, vertical text, and more)
+            <br>• Cross-message detection (information spread across multiple messages)
         </div>
 
         <div class="toggle-container">
@@ -211,7 +246,21 @@
                 <div class="pii-details">
                     Detected Information:
                     {% for detail in message.pii_details %}
-                    <div>• {{ detail.type }}: <span class="warning-text">"{{ detail.display_text }}"</span></div>
+                    <div>• 
+                        {% if detail.type == 'PHONE_NUMBER' %}
+                            Phone Number: 
+                        {% elif detail.type == 'EMAIL_ADDRESS' %}
+                            Email Address: 
+                        {% elif detail.type == 'SOCIAL_MEDIA' %}
+                            Social Media Handle: 
+                        {% else %}
+                            {{ detail.type }}: 
+                        {% endif %}
+                        <span class="warning-text">"{{ detail.display_text }}"</span>
+                        {% if detail.is_cross_message %}
+                        <span class="cross-message-tag">Detected across messages</span>
+                        {% endif %}
+                    </div>
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -271,6 +320,24 @@
                     location.reload();
                 }
             });
+        });
+
+        // Handle clear chat button
+        document.getElementById('clearChat').addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear all messages?')) {
+                fetch('/clear_chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        location.reload();
+                    }
+                });
+            }
         });
     </script>
 </body>
